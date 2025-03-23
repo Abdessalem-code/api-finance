@@ -1,0 +1,38 @@
+Below is an updated **README** snippet referencing the Kaggle data source:
+
+---
+
+# Stock Data API
+
+A simple FastAPI application that returns stock data (daily or resampled by week, month, or year) for available symbols.
+
+## Data Source
+- Data files come from the **[Price Volume Data For All US Stocks & ETFs](https://www.kaggle.com/datasets/borismarjanovic/price-volume-data-for-all-us-stocks-etfs)** dataset on Kaggle.
+- Place the extracted CSV files in the `./Stocks` folder. Each file should be named `[symbol].us.txt`.
+
+## Requirements
+- Python 3.9+
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [pandas](https://pandas.pydata.org/)
+
+Install dependencies:
+```bash
+pip install fastapi pandas
+```
+
+## Usage
+1. **Start the server**:
+   ```bash
+   uvicorn main:app --reload
+   ```
+2. **Query the endpoint**:
+   - **GET /**  
+     - **Parameters**:  
+       - `symbol`: Stock symbol, e.g., `?symbol=aa`.  
+       - `frequency` (optional): `daily`, `weekly`, `monthly`, or `yearly`. (Default: `daily`)  
+     - **Example**:  
+       ```
+       GET http://127.0.0.1:8000?symbol=aa&frequency=monthly
+       ```
+3. **Response**:  
+   - Returns JSON with an array of date-indexed stock data (Open, High, Low, Close, Volume, etc.).
