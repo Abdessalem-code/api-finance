@@ -1,7 +1,3 @@
-Below is an updated **README** snippet referencing the Kaggle data source:
-
----
-
 # Stock Data API
 
 A simple FastAPI application that returns stock data (daily or resampled by week, month, or year) for available symbols.
@@ -14,25 +10,58 @@ A simple FastAPI application that returns stock data (daily or resampled by week
 - Python 3.9+
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [pandas](https://pandas.pydata.org/)
+- websockets
 
 Install dependencies:
 ```bash
-pip install fastapi pandas
+pip install fastapi pandas websockets
 ```
 
 ## Usage
-1. **Start the server**:
-   ```bash
-   uvicorn main:app --reload
-   ```
-2. **Query the endpoint**:
-   - **GET /**  
-     - **Parameters**:  
-       - `symbol`: Stock symbol, e.g., `?symbol=aa`.  
-       - `frequency` (optional): `daily`, `weekly`, `monthly`, or `yearly`. (Default: `daily`)  
-     - **Example**:  
-       ```
-       GET http://127.0.0.1:8000?symbol=aa&frequency=monthly
-       ```
-3. **Response**:  
-   - Returns JSON with an array of date-indexed stock data (Open, High, Low, Close, Volume, etc.).
+
+### 1. Start the Server
+Run the following command to start the API:
+```bash
+uvicorn main:app --reload
+```
+
+### 2. HTTP Endpoint
+- **GET /**  
+  - **Parameters**:  
+    - `symbol`: Stock symbol, e.g., `?symbol=aa`.  
+    - `frequency` (optional): `daily`, `weekly`, `monthly`, or `yearly` (Default: `daily`).  
+  - **Example**:  
+    ```
+    GET http://127.0.0.1:8000?symbol=aa&frequency=monthly
+    ```
+- **Response**:  
+  - Returns JSON with an array of date-indexed stock data (Open, High, Low, Close, Volume, etc.).
+
+### 3. WebSocket Endpoint
+- **Endpoint**:  
+  - Connect to: `ws://127.0.0.1:8000/ws/<symbol>`  
+  - Replace `<symbol>` with the desired stock symbol (e.g., `ibm`).
+- **Server Behavior**:  
+  - After accepting the connection, the server streams each row of the stock data at fixed intervals.
+- **Client Testing Example**:
+  
+  ```python
+  import asyncio
+  from websockets.asyncio.client import connect
+  from websockets import ConnectionClosed
+
+  async def connect_to_data_stream():
+      async with connect("ws://127.0.0.1:8000/ws/ibm") as websocket:
+          while True:
+              try:
+                  message = await websocket.recv()
+                  print(message)
+              except ConnectionClosed:
+                  print("Connection closed")
+                  break
+
+  if __name__ == "__main__":
+      asyncio.run(connect_to_data_stream())
+  ```
+
+This client code connects to the WebSocket endpoint for the `ibm` symbol and continuously prints each message received until the connection is closed.
