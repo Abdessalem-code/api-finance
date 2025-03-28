@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from Stock import FrequencyEnum, StockData, StockLine
 import pandas as pd
 import asyncio
@@ -45,28 +45,48 @@ def query_main(symbol : str = "", frequency : FrequencyEnum = FrequencyEnum.dail
             OpenInt=row["OpenInt"]) 
         for _, row in df.iterrows()])
     
-@app.websocket("/ws/{symbol}")
-async def stream_data(websocket: WebSocket, symbol: str):
+async def stream_symbol_data(websocket: WebSocket, symbol: str):
     if symbol.lower() not in symbols:
-        raise HTTPException(status_code=404, detail="Symbol not found")
+        await websocket.send_json({"error": f"Symbol {symbol} not found."})
+        return
 
-    await websocket.accept()
+    file_path = f"./Stocks/{symbol.lower()}.us.txt"
+    if not os.path.isfile(file_path):
+        await websocket.send_json({"error": f"No file for symbol {symbol}."})
+        return
 
-    df = pd.read_csv(f"./Stocks/{symbol.lower()}.us.txt")
+    df = pd.read_csv(file_path)
     df["Date"] = pd.to_datetime(df["Date"])
 
-    for index in range(len(df)):
-        row = df.iloc[index]
-        await websocket.send_json({
+    for _, row in df.iterrows():
+        payload = {
+            "symbol": symbol,
             "Date": row["Date"].to_pydatetime().isoformat(),
             "Open": float(row["Open"]),
             "High": float(row["High"]),
             "Low": float(row["Low"]),
             "Close": float(row["Close"]),
             "Volume": int(row["Volume"]),
-            "OpenInt": int(row["OpenInt"]) 
-        })
-
+            "OpenInt": int(row["OpenInt"]),
+        }
+        await websocket.send_json(payload)
         await asyncio.sleep(0.5)
 
-    await websocket.close()
+# a temperory solution to stream multiple stocks data until creating a timeseries database.
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, symbols: str = Query(...)):
+    await websocket.accept()
+    print(symbols)
+    symbols_requested = [sym.lower() for sym in symbols.split(",")]
+    
+    tasks = [
+        asyncio.create_task(stream_symbol_data(websocket, sym))
+        for sym in symbols_requested
+    ]
+
+    try:
+        await asyncio.gather(*tasks)
+    except WebSocketDisconnect:
+        print("Client disconnected.")
+    finally:
+        await websocket.close()
